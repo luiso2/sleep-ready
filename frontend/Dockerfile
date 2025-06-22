@@ -6,7 +6,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies  
 RUN npm ci
 
 # Copy source code
@@ -16,8 +16,8 @@ COPY . .
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
-# Build the application using npx
-RUN npx vite build
+# Build the application by directly calling vite
+RUN ./node_modules/.bin/vite build || npx --no-install vite build
 
 # Production stage
 FROM nginx:alpine
