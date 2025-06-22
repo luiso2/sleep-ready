@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine as build
+FROM node:18-alpine AS build
 
 WORKDIR /app
 
@@ -8,6 +8,9 @@ COPY package*.json ./
 
 # Install dependencies
 RUN npm ci
+
+# Fix permissions for executables
+RUN chmod -R +x node_modules/.bin/
 
 # Copy source code
 COPY . .
