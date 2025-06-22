@@ -9,9 +9,6 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
-# Fix permissions for executables
-RUN chmod -R +x node_modules/.bin/
-
 # Copy source code
 COPY . .
 
@@ -19,8 +16,8 @@ COPY . .
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
-# Build the application
-RUN npm run build
+# Build the application using npx
+RUN npx vite build
 
 # Production stage
 FROM nginx:alpine
