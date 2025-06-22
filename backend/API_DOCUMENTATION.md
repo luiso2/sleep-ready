@@ -1,183 +1,383 @@
 # Sleep Ready API Documentation
 
-## Base URL
-- Production: http://168.231.92.67:3002
-- Local: http://localhost:3001
+## Base Information
+- **Production URL**: http://168.231.92.67:3002
+- **Local URL**: http://localhost:3001
+- **API Version**: 2.0.0
 
 ## Authentication
-All endpoints (except health check and auth endpoints) require authentication using JWT tokens.
 
-Include the token in the Authorization header:
-```
-Authorization: Bearer <token>
-```
+### Login
+```bash
+POST /api/auth/login
+Content-Type: application/json
 
-## Endpoints
+{
+  "email": "admin@sleepready.com",
+  "password": "admin123"
+}
 
-### Authentication
-- `POST /api/auth/login` - Login with email and password
-- `GET /api/auth/me` - Get current user information
-- `POST /api/auth/logout` - Logout
-
-### Customers
-- `GET /api/customers` - Get all customers (with pagination)
-  - Query params: `page`, `limit`, `search`, `tier`
-- `GET /api/customers/:id` - Get customer by ID
-- `POST /api/customers` - Create new customer
-- `PUT /api/customers/:id` - Update customer
-- `DELETE /api/customers/:id` - Delete customer
-
-### Employees
-- `GET /api/employees` - Get all employees (with pagination)
-  - Query params: `page`, `limit`, `sort`, `order`, `role`, `store_id`, `status`
-- `GET /api/employees/:id` - Get employee by ID
-- `GET /api/employees/:id/performance` - Get employee performance metrics
-- `POST /api/employees` - Create new employee
-- `PUT /api/employees/:id` - Update employee
-- `DELETE /api/employees/:id` - Delete employee
-
-### Sales
-- `GET /api/sales` - Get all sales (with pagination)
-  - Query params: `page`, `limit`, `sort`, `order`, `type`, `channel`, `payment_status`, `user_id`, `customer_id`, `store_id`, `start_date`, `end_date`
-- `GET /api/sales/stats` - Get sales statistics
-  - Query params: `start_date`, `end_date`, `group_by` (hour|day|week|month)
-- `GET /api/sales/:id` - Get sale by ID
-- `POST /api/sales` - Create new sale
-- `PUT /api/sales/:id` - Update sale
-- `DELETE /api/sales/:id` - Delete sale
-
-### Calls
-- `GET /api/calls` - Get all calls (with pagination)
-  - Query params: `page`, `limit`, `sort`, `order`, `type`, `status`, `disposition`, `user_id`, `customer_id`, `start_date`, `end_date`
-- `GET /api/calls/stats` - Get call statistics
-  - Query params: `user_id`, `start_date`, `end_date`
-- `GET /api/calls/:id` - Get call by ID
-- `POST /api/calls` - Create new call
-- `POST /api/calls/log` - Log a new call with duration
-- `PUT /api/calls/:id` - Update call
-- `DELETE /api/calls/:id` - Delete call
-
-### Stores
-- `GET /api/stores` - Get all stores (with pagination)
-  - Query params: `page`, `limit`, `sort`, `order`, `status`
-- `GET /api/stores/:id` - Get store by ID
-- `GET /api/stores/:id/performance` - Get store performance metrics
-- `GET /api/stores/:id/employees` - Get store employees
-- `POST /api/stores` - Create new store
-- `PUT /api/stores/:id` - Update store
-- `DELETE /api/stores/:id` - Delete store
-
-### Campaigns
-- `GET /api/campaigns` - Get all campaigns (with pagination)
-  - Query params: `page`, `limit`, `sort`, `order`, `type`, `status`, `created_by`
-- `GET /api/campaigns/:id` - Get campaign by ID
-- `GET /api/campaigns/:id/stats` - Get campaign statistics
-- `POST /api/campaigns` - Create new campaign
-- `POST /api/campaigns/:id/start` - Start a campaign
-- `POST /api/campaigns/:id/pause` - Pause a campaign
-- `POST /api/campaigns/:id/complete` - Complete a campaign
-- `PUT /api/campaigns/:id` - Update campaign
-- `DELETE /api/campaigns/:id` - Delete campaign
-
-### Subscriptions
-- `GET /api/subscriptions` - Get all subscriptions (with pagination)
-  - Query params: `page`, `limit`, `sort`, `order`, `plan`, `status`, `customer_id`
-- `GET /api/subscriptions/stats` - Get subscription statistics
-- `GET /api/subscriptions/:id` - Get subscription by ID
-- `POST /api/subscriptions` - Create new subscription
-- `POST /api/subscriptions/:id/cancel` - Cancel subscription
-- `POST /api/subscriptions/:id/pause` - Pause subscription
-- `POST /api/subscriptions/:id/resume` - Resume subscription
-- `PUT /api/subscriptions/:id` - Update subscription
-- `DELETE /api/subscriptions/:id` - Delete subscription
-
-### Scripts
-- `GET /api/scripts` - Get all scripts
-- `GET /api/scripts/:id` - Get script by ID
-- `POST /api/scripts` - Create new script
-- `PUT /api/scripts/:id` - Update script
-- `DELETE /api/scripts/:id` - Delete script
-
-### Commissions
-- `GET /api/commissions` - Get all commissions
-- `GET /api/commissions/:id` - Get commission by ID
-- `POST /api/commissions` - Create new commission
-- `PUT /api/commissions/:id` - Update commission
-- `DELETE /api/commissions/:id` - Delete commission
-
-### Evaluations
-- `GET /api/evaluations` - Get all evaluations
-- `GET /api/evaluations/:id` - Get evaluation by ID
-- `POST /api/evaluations` - Create new evaluation
-- `PUT /api/evaluations/:id` - Update evaluation
-- `DELETE /api/evaluations/:id` - Delete evaluation
-
-### Achievements
-- `GET /api/achievements` - Get all achievements
-- `GET /api/achievements/:id` - Get achievement by ID
-- `POST /api/achievements` - Create new achievement
-- `PUT /api/achievements/:id` - Update achievement
-- `DELETE /api/achievements/:id` - Delete achievement
-
-### Shopify Customers
-- `GET /api/shopify-customers` - Get all Shopify customers
-- `GET /api/shopify-customers/:id` - Get Shopify customer by ID
-- `POST /api/shopify-customers` - Create new Shopify customer
-- `PUT /api/shopify-customers/:id` - Update Shopify customer
-- `DELETE /api/shopify-customers/:id` - Delete Shopify customer
-
-### Shopify Products
-- `GET /api/shopify-products` - Get all Shopify products
-- `GET /api/shopify-products/:id` - Get Shopify product by ID
-- `POST /api/shopify-products` - Create new Shopify product
-- `PUT /api/shopify-products/:id` - Update Shopify product
-- `DELETE /api/shopify-products/:id` - Delete Shopify product
-
-### Shopify Settings
-- `GET /api/shopify-settings` - Get all Shopify settings
-- `GET /api/shopify-settings/:id` - Get Shopify setting by ID
-- `POST /api/shopify-settings` - Create new Shopify setting
-- `PUT /api/shopify-settings/:id` - Update Shopify setting
-- `DELETE /api/shopify-settings/:id` - Delete Shopify setting
-
-## Pagination
-All list endpoints support pagination with the following query parameters:
-- `page` - Page number (default: 1)
-- `limit` - Items per page (default: 10)
-- `sort` - Field to sort by (default: created_at)
-- `order` - Sort order: ASC or DESC (default: DESC)
-
-## Response Format
-All responses follow this format:
-
-### Success Response
-```json
+Response:
 {
   "success": true,
-  "data": {...},
-  "message": "Optional success message",
-  "pagination": {
-    "current": 1,
-    "pageSize": 10,
-    "total": 100,
-    "totalPages": 10
+  "message": "Login successful",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR...",
+    "user": {
+      "id": "emp-123",
+      "email": "admin@sleepready.com",
+      "first_name": "Admin",
+      "last_name": "User",
+      "role": "administrator"
+    }
   }
 }
 ```
 
-### Error Response
-```json
+### Get Current User
+```bash
+GET /api/auth/me
+Authorization: Bearer <token>
+
+Response:
 {
-  "success": false,
-  "message": "Error message",
-  "errors": [...]  // Optional validation errors
+  "success": true,
+  "data": {
+    "id": "emp-123",
+    "email": "admin@sleepready.com",
+    "first_name": "Admin",
+    "last_name": "User",
+    "role": "administrator"
+  }
 }
 ```
 
-## Status Codes
-- `200` - Success
-- `201` - Created
-- `400` - Bad Request (validation errors)
-- `401` - Unauthorized
-- `404` - Not Found
-- `500` - Internal Server Error
+## Entities
+
+### 1. Customers
+**Fields**: id, phone, email, first_name, last_name, address, tier, source, tags, lifetime_value, membership_status, etc.
+
+```bash
+# List customers with pagination and filters
+GET /api/customers?page=1&limit=10&search=john&tier=gold
+
+# Get single customer
+GET /api/customers/:id
+
+# Create customer
+POST /api/customers
+{
+  "first_name": "John",
+  "last_name": "Doe",
+  "email": "john@example.com",
+  "phone": "+1234567890",
+  "tier": "bronze",
+  "address": {
+    "street": "123 Main St",
+    "city": "New York",
+    "state": "NY",
+    "zip": "10001"
+  }
+}
+
+# Update customer
+PUT /api/customers/:id
+{
+  "tier": "gold",
+  "membership_status": "active"
+}
+
+# Delete customer
+DELETE /api/customers/:id
+```
+
+### 2. Employees
+**Fields**: id, employee_id, email, first_name, last_name, role, store_id, status, shift, performance, etc.
+
+```bash
+# List employees
+GET /api/employees?role=sales&store_id=store-123&status=active
+
+# Get employee performance
+GET /api/employees/:id/performance?start_date=2025-01-01&end_date=2025-06-30
+
+# Create employee
+POST /api/employees
+{
+  "employee_id": "EMP001",
+  "email": "john.smith@company.com",
+  "first_name": "John",
+  "last_name": "Smith",
+  "role": "sales",
+  "store_id": "store-123",
+  "phone_extension": "101"
+}
+```
+
+### 3. Sales
+**Fields**: id, subscription_id, customer_id, user_id, store_id, type, channel, amount, commission, payment_status, etc.
+
+```bash
+# List sales with filters
+GET /api/sales?type=new&channel=phone&start_date=2025-06-01
+
+# Get sales statistics
+GET /api/sales/stats?start_date=2025-01-01&group_by=month
+
+# Create sale
+POST /api/sales
+{
+  "customer_id": "cust-123",
+  "user_id": "emp-456",
+  "store_id": "store-789",
+  "type": "new",
+  "channel": "phone",
+  "amount": {
+    "subtotal": 199.99,
+    "tax": 20.00,
+    "total": 219.99
+  },
+  "payment_status": "paid"
+}
+```
+
+### 4. Calls
+**Fields**: id, customer_id, user_id, type, status, disposition, duration, notes, script, objections, etc.
+
+```bash
+# List calls
+GET /api/calls?type=outbound&disposition=sale
+
+# Get call statistics
+GET /api/calls/stats?user_id=emp-123
+
+# Log a call
+POST /api/calls/log
+{
+  "customer_id": "cust-123",
+  "user_id": "emp-456",
+  "type": "outbound",
+  "status": "completed",
+  "disposition": "sale",
+  "duration": 420,
+  "notes": "Customer interested in premium plan",
+  "objections": ["price", "contract_length"]
+}
+```
+
+### 5. Stores
+**Fields**: id, name, code, address, phone, manager_id, hours, service_area, status, etc.
+
+```bash
+# List stores
+GET /api/stores?status=active
+
+# Get store performance
+GET /api/stores/:id/performance
+
+# Get store employees
+GET /api/stores/:id/employees
+
+# Create store
+POST /api/stores
+{
+  "name": "Sleep Ready Manhattan",
+  "code": "SR-MAN-001",
+  "address": {
+    "street": "789 Broadway",
+    "city": "New York",
+    "state": "NY",
+    "zip": "10003"
+  },
+  "phone": "+1234567890",
+  "manager_id": "emp-123"
+}
+```
+
+### 6. Campaigns
+**Fields**: id, name, type, status, targeting, script, offer, metrics, assigned_to, start_date, end_date, etc.
+
+```bash
+# List campaigns
+GET /api/campaigns?status=active
+
+# Get campaign statistics
+GET /api/campaigns/:id/stats
+
+# Create campaign
+POST /api/campaigns
+{
+  "name": "Summer Sleep Sale 2025",
+  "type": "promotional",
+  "targeting": {
+    "tiers": ["gold", "platinum"],
+    "min_lifetime_value": 1000
+  },
+  "offer": {
+    "discount": 20,
+    "products": ["premium_mattress", "adjustable_base"]
+  },
+  "assigned_to": ["emp-123", "emp-456"]
+}
+
+# Campaign actions
+POST /api/campaigns/:id/start
+POST /api/campaigns/:id/pause
+POST /api/campaigns/:id/complete
+```
+
+### 7. Subscriptions
+**Fields**: id, customer_id, plan, status, pricing, billing, services, credits, start_date, etc.
+
+```bash
+# List subscriptions
+GET /api/subscriptions?status=active&plan=premium
+
+# Get subscription statistics
+GET /api/subscriptions/stats
+
+# Create subscription
+POST /api/subscriptions
+{
+  "customer_id": "cust-123",
+  "plan": "premium",
+  "status": "active",
+  "pricing": {
+    "monthly": 49.99,
+    "annual": 499.99
+  },
+  "billing": {
+    "cycle": "monthly",
+    "next_date": "2025-07-01"
+  },
+  "start_date": "2025-06-01"
+}
+
+# Subscription actions
+POST /api/subscriptions/:id/cancel
+{
+  "reason": "Customer requested cancellation"
+}
+
+POST /api/subscriptions/:id/pause
+POST /api/subscriptions/:id/resume
+```
+
+### 8. Other Entities
+
+#### Scripts
+```bash
+GET /api/scripts
+POST /api/scripts
+PUT /api/scripts/:id
+DELETE /api/scripts/:id
+```
+
+#### Commissions
+```bash
+GET /api/commissions
+POST /api/commissions
+PUT /api/commissions/:id
+DELETE /api/commissions/:id
+```
+
+#### Evaluations
+```bash
+GET /api/evaluations
+POST /api/evaluations
+PUT /api/evaluations/:id
+DELETE /api/evaluations/:id
+```
+
+#### Achievements
+```bash
+GET /api/achievements
+POST /api/achievements
+PUT /api/achievements/:id
+DELETE /api/achievements/:id
+```
+
+#### Shopify Integration
+```bash
+# Shopify Customers
+GET /api/shopify-customers
+POST /api/shopify-customers
+PUT /api/shopify-customers/:id
+DELETE /api/shopify-customers/:id
+
+# Shopify Products
+GET /api/shopify-products
+POST /api/shopify-products
+PUT /api/shopify-products/:id
+DELETE /api/shopify-products/:id
+
+# Shopify Settings
+GET /api/shopify-settings
+POST /api/shopify-settings
+PUT /api/shopify-settings/:id
+DELETE /api/shopify-settings/:id
+```
+
+## Common Query Parameters
+
+### Pagination
+- `page` - Page number (default: 1)
+- `limit` - Items per page (default: 10)
+
+### Sorting
+- `sort` - Field to sort by (default: created_at)
+- `order` - Sort order: ASC or DESC (default: DESC)
+
+### Date Filtering
+- `start_date` - Filter results from this date
+- `end_date` - Filter results until this date
+
+## Error Handling
+
+### Validation Error (400)
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Valid email is required"
+    }
+  ]
+}
+```
+
+### Authentication Error (401)
+```json
+{
+  "success": false,
+  "message": "Access token required"
+}
+```
+
+### Not Found Error (404)
+```json
+{
+  "success": false,
+  "message": "Customer not found"
+}
+```
+
+### Server Error (500)
+```json
+{
+  "success": false,
+  "message": "Internal server error"
+}
+```
+
+## Rate Limiting
+- 100 requests per 15 minutes per IP address
+- Returns 429 status code when limit exceeded
+
+## CORS
+Allowed origins:
+- http://168.231.92.67:8081
+- http://localhost:3000
+- http://localhost:5173
