@@ -4,9 +4,9 @@
   "private": true,
   "description": "Frontend application for Sleep Ready using refine.dev",
   "scripts": {
-    "dev": "refine dev",
-    "build": "refine build",
-    "start": "refine start",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "start": "vite preview",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
     "preview": "vite preview"
