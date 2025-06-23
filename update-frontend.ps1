@@ -1,42 +1,38 @@
-# Script para forzar la actualización del frontend en EasyPanel
-# Este script debe ejecutarse después de hacer push a GitHub
+# Script para actualizar el frontend en EasyPanel
 
-Write-Host "🚀 Iniciando actualización del frontend en EasyPanel..." -ForegroundColor Green
+Write-Host "🔄 Actualizando frontend para Sleep Ready..." -ForegroundColor Cyan
 
-# Configuración
-$EASYPANEL_URL = "http://168.231.92.67:3000"
-$PROJECT = "sleep-ready"
-$SERVICE = "frontend"
+# Navigate to project directory
+Set-Location "C:\Users\Andybeats\Desktop\Claude Projects\vargas\sleep-ready"
 
-Write-Host "📦 Proyecto: $PROJECT" -ForegroundColor Cyan
-Write-Host "🔧 Servicio: $SERVICE" -ForegroundColor Cyan
+# Check git status
+Write-Host "`n📊 Estado actual del repositorio:" -ForegroundColor Yellow
+git status
 
-# Instrucciones manuales
-Write-Host ""
-Write-Host "⚠️  IMPORTANTE: Sigue estos pasos manualmente:" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "1. Abre EasyPanel: $EASYPANEL_URL" -ForegroundColor White
-Write-Host "2. Ve a Projects > $PROJECT" -ForegroundColor White
-Write-Host "3. Haz clic en el servicio '$SERVICE'" -ForegroundColor White
-Write-Host "4. En la pestaña 'Source', verifica que esté configurado así:" -ForegroundColor White
-Write-Host "   - Type: GitHub" -ForegroundColor Gray
-Write-Host "   - Repository: luiso2/sleep-ready" -ForegroundColor Gray
-Write-Host "   - Branch: main" -ForegroundColor Gray
-Write-Host "   - Root Directory: /frontend" -ForegroundColor Gray
-Write-Host ""
-Write-Host "5. Si está configurado como 'Image' en lugar de 'GitHub':" -ForegroundColor White
-Write-Host "   a. Cambia el tipo a 'GitHub'" -ForegroundColor Gray
-Write-Host "   b. Configura el repositorio y branch" -ForegroundColor Gray
-Write-Host "   c. Establece el Root Directory como '/frontend'" -ForegroundColor Gray
-Write-Host ""
-Write-Host "6. Haz clic en 'Deploy' o 'Redeploy'" -ForegroundColor White
-Write-Host ""
-Write-Host "7. Espera a que termine el build (2-3 minutos)" -ForegroundColor White
-Write-Host ""
-Write-Host "✅ Una vez completado, el frontend estará actualizado!" -ForegroundColor Green
+# Add all changes
+Write-Host "`n➕ Agregando cambios..." -ForegroundColor Yellow
+git add .
 
-# Opción para abrir EasyPanel automáticamente
-$response = Read-Host "¿Deseas abrir EasyPanel en el navegador? (S/N)"
-if ($response -eq 'S' -or $response -eq 's') {
-    Start-Process $EASYPANEL_URL
-}
+# Commit changes
+Write-Host "`n💾 Haciendo commit..." -ForegroundColor Yellow
+git commit -m "Fix: Corregir problema de navegación y autenticación
+
+- Actualizar dataProvider para manejar mejor errores 401
+- Mejorar authProvider para evitar redirecciones forzadas
+- Cambiar URL de producción a HTTP (EasyPanel no soporta HTTPS)
+- Mantener el contexto de navegación al recibir errores de auth"
+
+# Push to GitHub
+Write-Host "`n📤 Subiendo cambios a GitHub..." -ForegroundColor Yellow
+git push origin main
+
+Write-Host "`n✅ Cambios subidos exitosamente!" -ForegroundColor Green
+Write-Host ""
+Write-Host "📝 Siguiente paso:" -ForegroundColor Cyan
+Write-Host "1. Ve a EasyPanel: http://168.231.92.67:3000" -ForegroundColor White
+Write-Host "2. Projects → sleep-ready → frontend" -ForegroundColor White
+Write-Host "3. Click en 'Deploy' para actualizar" -ForegroundColor White
+
+# Pause to see the output
+Write-Host "`nPresiona cualquier tecla para continuar..."
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

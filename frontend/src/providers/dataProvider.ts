@@ -29,9 +29,12 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
+      // Don't directly navigate, let authProvider handle it
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login') {
+        // Store the current location to redirect back after login
+        localStorage.setItem('redirectTo', currentPath);
+      }
     }
     return Promise.reject(error);
   }
@@ -78,109 +81,169 @@ export const dataProvider: DataProvider = {
       params.order = sorter.order;
     }
 
-    const { data } = await axiosInstance.get(url, { params });
+    try {
+      const { data } = await axiosInstance.get(url, { params });
 
-    // Handle different response formats
-    let responseData = [];
-    let total = 0;
+      // Handle different response formats
+      let responseData = [];
+      let total = 0;
 
-    if (data.success && data.data) {
-      responseData = data.data;
-      total = data.total || data.data.length;
-    } else if (data.success && data.items) {
-      responseData = data.items;
-      total = data.total || data.items.length;
-    } else if (Array.isArray(data)) {
-      responseData = data;
-      total = data.length;
+      if (data.success && data.data) {
+        responseData = data.data;
+        total = data.total || data.data.length;
+      } else if (data.success && data.items) {
+        responseData = data.items;
+        total = data.total || data.items.length;
+      } else if (Array.isArray(data)) {
+        responseData = data;
+        total = data.length;
+      }
+
+      return {
+        data: responseData,
+        total: total,
+      };
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw {
+          message: "Authentication required",
+          statusCode: 401,
+        };
+      }
+      throw error;
     }
-
-    return {
-      data: responseData,
-      total: total,
-    };
   },
 
   // Get single resource
   getOne: async ({ resource, id }) => {
-    const { data } = await axiosInstance.get(`/${resource}/${id}`);
-    
-    // Handle different response formats
-    let responseData = data;
-    
-    if (data.success && data.data) {
-      responseData = data.data;
-    }
+    try {
+      const { data } = await axiosInstance.get(`/${resource}/${id}`);
+      
+      // Handle different response formats
+      let responseData = data;
+      
+      if (data.success && data.data) {
+        responseData = data.data;
+      }
 
-    return {
-      data: responseData,
-    };
+      return {
+        data: responseData,
+      };
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw {
+          message: "Authentication required",
+          statusCode: 401,
+        };
+      }
+      throw error;
+    }
   },
 
   // Create new resource
   create: async ({ resource, variables }) => {
-    const { data } = await axiosInstance.post(`/${resource}`, variables);
-    
-    // Handle different response formats
-    let responseData = data;
-    
-    if (data.success && data.data) {
-      responseData = data.data;
-    }
+    try {
+      const { data } = await axiosInstance.post(`/${resource}`, variables);
+      
+      // Handle different response formats
+      let responseData = data;
+      
+      if (data.success && data.data) {
+        responseData = data.data;
+      }
 
-    return {
-      data: responseData,
-    };
+      return {
+        data: responseData,
+      };
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw {
+          message: "Authentication required",
+          statusCode: 401,
+        };
+      }
+      throw error;
+    }
   },
 
   // Update existing resource
   update: async ({ resource, id, variables }) => {
-    const { data } = await axiosInstance.put(`/${resource}/${id}`, variables);
-    
-    // Handle different response formats
-    let responseData = data;
-    
-    if (data.success && data.data) {
-      responseData = data.data;
-    }
+    try {
+      const { data } = await axiosInstance.put(`/${resource}/${id}`, variables);
+      
+      // Handle different response formats
+      let responseData = data;
+      
+      if (data.success && data.data) {
+        responseData = data.data;
+      }
 
-    return {
-      data: responseData,
-    };
+      return {
+        data: responseData,
+      };
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw {
+          message: "Authentication required",
+          statusCode: 401,
+        };
+      }
+      throw error;
+    }
   },
 
   // Delete resource
   deleteOne: async ({ resource, id }) => {
-    const { data } = await axiosInstance.delete(`/${resource}/${id}`);
-    
-    // Handle different response formats
-    let responseData = data;
-    
-    if (data.success && data.data) {
-      responseData = data.data;
-    }
+    try {
+      const { data } = await axiosInstance.delete(`/${resource}/${id}`);
+      
+      // Handle different response formats
+      let responseData = data;
+      
+      if (data.success && data.data) {
+        responseData = data.data;
+      }
 
-    return {
-      data: responseData,
-    };
+      return {
+        data: responseData,
+      };
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw {
+          message: "Authentication required",
+          statusCode: 401,
+        };
+      }
+      throw error;
+    }
   },
 
   // Get many resources by IDs
   getMany: async ({ resource, ids }) => {
-    const promises = ids.map((id) =>
-      axiosInstance.get(`/${resource}/${id}`)
-    );
-    
-    const responses = await Promise.all(promises);
-    
-    return {
-      data: responses.map((response) => {
-        if (response.data.success && response.data.data) {
-          return response.data.data;
-        }
-        return response.data;
-      }),
-    };
+    try {
+      const promises = ids.map((id) =>
+        axiosInstance.get(`/${resource}/${id}`)
+      );
+      
+      const responses = await Promise.all(promises);
+      
+      return {
+        data: responses.map((response) => {
+          if (response.data.success && response.data.data) {
+            return response.data.data;
+          }
+          return response.data;
+        }),
+      };
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw {
+          message: "Authentication required",
+          statusCode: 401,
+        };
+      }
+      throw error;
+    }
   },
 
   // Custom method for API calls
@@ -199,7 +262,17 @@ export const dataProvider: DataProvider = {
       headers,
     };
 
-    const { data } = await axiosInstance(config);
-    return Promise.resolve({ data });
+    try {
+      const { data } = await axiosInstance(config);
+      return Promise.resolve({ data });
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw {
+          message: "Authentication required",
+          statusCode: 401,
+        };
+      }
+      throw error;
+    }
   },
 };

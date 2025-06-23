@@ -7,6 +7,20 @@ const axiosInstance = axios.create({
   baseURL: API_URL,
 });
 
+// Add token to requests
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 export const authProvider: AuthProvider = {
   // Login method
   login: async ({ email, password, remember }) => {
@@ -21,6 +35,16 @@ export const authProvider: AuthProvider = {
         
         localStorage.setItem("auth_token", token);
         localStorage.setItem("user", JSON.stringify(user));
+        
+        // Check if there's a redirect URL stored
+        const redirectTo = localStorage.getItem("redirectTo");
+        if (redirectTo) {
+          localStorage.removeItem("redirectTo");
+          return {
+            success: true,
+            redirectTo: redirectTo,
+          };
+        }
         
         return {
           success: true,
@@ -64,6 +88,7 @@ export const authProvider: AuthProvider = {
 
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user");
+    localStorage.removeItem("redirectTo");
     
     return {
       success: true,
@@ -117,18 +142,27 @@ export const authProvider: AuthProvider = {
           redirectTo: "/login",
         };
       }
-    } catch (error) {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user");
+    } catch (error: any) {
+      // Only clear tokens if it's a 401 error
+      if (error.response?.status === 401) {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("user");
+        
+        return {
+          authenticated: false,
+          error: {
+            message: "Session expired",
+            name: "Unauthorized",
+          },
+          logout: true,
+          redirectTo: "/login",
+        };
+      }
       
+      // For other errors, keep the user logged in
+      console.error("Auth check error:", error);
       return {
-        authenticated: false,
-        error: {
-          message: "Authentication check failed",
-          name: "Unauthorized",
-        },
-        logout: true,
-        redirectTo: "/login",
+        authenticated: true,
       };
     }
   },
@@ -137,13 +171,15 @@ export const authProvider: AuthProvider = {
   onError: async (error) => {
     console.error("Auth error:", error);
     
-    if (error.response?.status === 401) {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user");
-      
+    // Only logout on 401 errors
+    if (error?.statusCode === 401 || error?.response?.status === 401) {
       return {
         logout: true,
         redirectTo: "/login",
+        error: {
+          message: "Session expired, please login again",
+          name: "Unauthorized",
+        },
       };
     }
 

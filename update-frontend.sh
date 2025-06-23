@@ -1,38 +1,34 @@
 #!/bin/bash
 
-# Script para forzar la actualización del frontend en EasyPanel
-# Este script debe ejecutarse después de hacer push a GitHub
+echo "🔄 Actualizando frontend para Sleep Ready..."
 
-echo "🚀 Iniciando actualización del frontend en EasyPanel..."
+# Navigate to project directory
+cd "C:/Users/Andybeats/Desktop/Claude Projects/vargas/sleep-ready"
 
-# Configuración
-EASYPANEL_URL="http://168.231.92.67:3000"
-PROJECT="sleep-ready"
-SERVICE="frontend"
+# Check git status
+echo "📊 Estado actual del repositorio:"
+git status
 
-echo "📦 Proyecto: $PROJECT"
-echo "🔧 Servicio: $SERVICE"
+# Add all changes
+echo "➕ Agregando cambios..."
+git add .
 
-# Instrucciones manuales (ya que no tenemos acceso directo a la API de EasyPanel)
+# Commit changes
+echo "💾 Haciendo commit..."
+git commit -m "Fix: Corregir problema de navegación y autenticación
+
+- Actualizar dataProvider para manejar mejor errores 401
+- Mejorar authProvider para evitar redirecciones forzadas
+- Cambiar URL de producción a HTTP (EasyPanel no soporta HTTPS)
+- Mantener el contexto de navegación al recibir errores de auth"
+
+# Push to GitHub
+echo "📤 Subiendo cambios a GitHub..."
+git push origin main
+
+echo "✅ Cambios subidos exitosamente!"
 echo ""
-echo "⚠️  IMPORTANTE: Sigue estos pasos manualmente:"
-echo ""
-echo "1. Abre EasyPanel: $EASYPANEL_URL"
-echo "2. Ve a Projects > $PROJECT"
-echo "3. Haz clic en el servicio '$SERVICE'"
-echo "4. En la pestaña 'Source', verifica que esté configurado así:"
-echo "   - Type: GitHub"
-echo "   - Repository: luiso2/sleep-ready"
-echo "   - Branch: main"
-echo "   - Root Directory: /frontend"
-echo ""
-echo "5. Si está configurado como 'Image' en lugar de 'GitHub':"
-echo "   a. Cambia el tipo a 'GitHub'"
-echo "   b. Configura el repositorio y branch"
-echo "   c. Establece el Root Directory como '/frontend'"
-echo ""
-echo "6. Haz clic en 'Deploy' o 'Redeploy'"
-echo ""
-echo "7. Espera a que termine el build (2-3 minutos)"
-echo ""
-echo "✅ Una vez completado, el frontend estará actualizado!"
+echo "📝 Siguiente paso:"
+echo "1. Ve a EasyPanel: http://168.231.92.67:3000"
+echo "2. Projects → sleep-ready → frontend"
+echo "3. Click en 'Deploy' para actualizar"
