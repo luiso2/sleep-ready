@@ -12,7 +12,7 @@ import routerBindings, {
   UnsavedChangesNotifier,
 } from "@refinedev/react-router-v6";
 import { App as AntdApp, ConfigProvider } from "antd";
-import { BrowserRouter, Route, Routes, Outlet } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Outlet, Navigate } from "react-router-dom";
 
 import "@refinedev/antd/dist/reset.css";
 
@@ -69,6 +69,11 @@ import {
   ShopOutlined,
   ShoppingCartOutlined,
   DollarOutlined,
+  PhoneOutlined,
+  CalendarOutlined,
+  TrophyOutlined,
+  CreditCardOutlined,
+  SyncOutlined,
 } from "@ant-design/icons";
 
 const App: React.FC = () => {
@@ -92,7 +97,7 @@ const App: React.FC = () => {
               resources={[
                 {
                   name: "dashboard",
-                  list: "/",
+                  list: "/dashboard",
                   meta: {
                     label: "Dashboard",
                     icon: <DashboardOutlined />,
@@ -158,6 +163,66 @@ const App: React.FC = () => {
                     icon: <DollarOutlined />,
                   },
                 },
+                {
+                  name: "calls",
+                  list: "/calls",
+                  create: "/calls/create",
+                  edit: "/calls/edit/:id",
+                  show: "/calls/show/:id",
+                  meta: {
+                    canDelete: true,
+                    label: "Calls",
+                    icon: <PhoneOutlined />,
+                  },
+                },
+                {
+                  name: "campaigns",
+                  list: "/campaigns",
+                  create: "/campaigns/create",
+                  edit: "/campaigns/edit/:id",
+                  show: "/campaigns/show/:id",
+                  meta: {
+                    canDelete: true,
+                    label: "Campaigns",
+                    icon: <CalendarOutlined />,
+                  },
+                },
+                {
+                  name: "subscriptions",
+                  list: "/subscriptions",
+                  create: "/subscriptions/create",
+                  edit: "/subscriptions/edit/:id",
+                  show: "/subscriptions/show/:id",
+                  meta: {
+                    canDelete: true,
+                    label: "Subscriptions",
+                    icon: <CreditCardOutlined />,
+                  },
+                },
+                {
+                  name: "achievements",
+                  list: "/achievements",
+                  create: "/achievements/create",
+                  edit: "/achievements/edit/:id",
+                  show: "/achievements/show/:id",
+                  meta: {
+                    canDelete: true,
+                    label: "Achievements",
+                    icon: <TrophyOutlined />,
+                  },
+                },
+                {
+                  name: "evaluations",
+                  list: "/evaluations",
+                  create: "/evaluations/create",
+                  edit: "/evaluations/edit/:id",
+                  show: "/evaluations/show/:id",
+                  meta: {
+                    canDelete: true,
+                    label: "Trade & Sleep",
+                    icon: <SyncOutlined />,
+                  },
+                },
               ]}
               options={{
                 syncWithLocation: true,
@@ -179,10 +244,7 @@ const App: React.FC = () => {
                     </ThemedLayoutV2>
                   }
                 >
-                  <Route
-                    index
-                    element={<NavigateToResource resource="dashboard" />}
-                  />
+                  <Route index element={<Navigate to="/dashboard" />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   
                   {/* Customer Routes */}
@@ -224,6 +286,13 @@ const App: React.FC = () => {
                     <Route path="edit/:id" element={<SaleEdit />} />
                     <Route path="show/:id" element={<SaleShow />} />
                   </Route>
+
+                  {/* Placeholder routes for other modules */}
+                  <Route path="/calls" element={<div style={{ padding: 24 }}>Calls module coming soon...</div>} />
+                  <Route path="/campaigns" element={<div style={{ padding: 24 }}>Campaigns module coming soon...</div>} />
+                  <Route path="/subscriptions" element={<div style={{ padding: 24 }}>Subscriptions module coming soon...</div>} />
+                  <Route path="/achievements" element={<div style={{ padding: 24 }}>Achievements module coming soon...</div>} />
+                  <Route path="/evaluations" element={<div style={{ padding: 24 }}>Trade & Sleep module coming soon...</div>} />
                 </Route>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="*" element={<ErrorComponent />} />
