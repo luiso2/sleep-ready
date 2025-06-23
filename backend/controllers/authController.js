@@ -29,9 +29,9 @@ const login = async (req, res) => {
 
     const { email, password } = req.body;
 
-    // Find user by email
+    // Find user by email in users table
     const userResult = await db.query(
-      'SELECT id, email, first_name, last_name, role, status FROM employees WHERE email = $1',
+      'SELECT id, email, name, role, is_active, password FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
 
@@ -45,16 +45,19 @@ const login = async (req, res) => {
     const user = userResult.rows[0];
 
     // Check if account is active
-    if (user.status !== 'active') {
+    if (!user.is_active) {
       return res.status(401).json({
         success: false,
         message: 'Account is not active'
       });
     }
 
-    // For demo purposes, we'll use a simple password check
-    // In production, you should hash passwords properly
-    const validPassword = password === 'admin123' || password === 'password';
+    // For demo purposes, we're using plain text passwords
+    // In production, passwords should be hashed with bcrypt
+    const validPassword = password === user.password;
+    
+    // Uncomment this for production with hashed passwords:
+    // const validPassword = await bcrypt.compare(password, user.password);
     
     if (!validPassword) {
       return res.status(401).json({
@@ -69,11 +72,22 @@ const login = async (req, res) => {
     // Remove sensitive data
     delete user.password;
 
+    // Split name into first_name and last_name for frontend compatibility
+    const nameParts = (user.name || '').split(' ');
+    const userData = {
+      id: user.id,
+      email: user.email,
+      first_name: nameParts[0] || '',
+      last_name: nameParts.slice(1).join(' ') || '',
+      role: user.role,
+      status: user.is_active ? 'active' : 'inactive'
+    };
+
     res.json({
       success: true,
       message: 'Login successful',
       data: {
-        user,
+        user: userData,
         token,
         expiresIn: process.env.JWT_EXPIRES_IN
       }
@@ -93,16 +107,13 @@ const me = async (req, res) => {
   try {
     const user = req.user;
     
-    // Get additional user info
+    // Get user info from users table
     const userResult = await db.query(
       `SELECT 
-        e.id, e.email, e.first_name, e.last_name, e.role, e.status,
-        e.employee_id, e.phone_extension, e.avatar, e.shift,
-        e.hired_at, e.commissions, e.performance,
-        s.name as store_name, s.code as store_code
-      FROM employees e 
-      LEFT JOIN stores s ON e.store_id = s.id 
-      WHERE e.id = $1`,
+        id, email, name, role, is_active,
+        created_at, updated_at
+      FROM users 
+      WHERE id = $1`,
       [user.id]
     );
 
@@ -113,9 +124,24 @@ const me = async (req, res) => {
       });
     }
 
+    const userData = userResult.rows[0];
+    
+    // Split name for frontend compatibility
+    const nameParts = (userData.name || '').split(' ');
+    const responseData = {
+      id: userData.id,
+      email: userData.email,
+      first_name: nameParts[0] || '',
+      last_name: nameParts.slice(1).join(' ') || '',
+      role: userData.role,
+      status: userData.is_active ? 'active' : 'inactive',
+      created_at: userData.created_at,
+      updated_at: userData.updated_at
+    };
+
     res.json({
       success: true,
-      data: userResult.rows[0]
+      data: responseData
     });
 
   } catch (error) {
