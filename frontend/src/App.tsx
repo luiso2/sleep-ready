@@ -19,7 +19,7 @@ import { dataProvider } from "./providers/dataProvider";
 import { authProvider } from "./providers/authProvider";
 import { LoginPage } from "./pages/login";
 import { Dashboard } from "./components/Dashboard";
-import { CustomSider } from "./components/layout/CustomSider";
+import { CustomLayoutSider } from "./components/layout/Sider";
 
 // Customer pages
 import { 
@@ -238,7 +238,7 @@ const App: React.FC = () => {
                 <Route
                   element={
                     <ThemedLayoutV2
-                      Sider={() => <CustomSider />}
+                      Sider={CustomLayoutSider}
                     >
                       <Outlet />
                     </ThemedLayoutV2>
