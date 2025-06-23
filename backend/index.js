@@ -15,6 +15,11 @@ const callRoutes = require('./routes/calls');
 const storeRoutes = require('./routes/stores');
 const campaignRoutes = require('./routes/campaigns');
 const subscriptionRoutes = require('./routes/subscriptions');
+const productRoutes = require('./routes/products');
+const evaluationRoutes = require('./routes/evaluations');
+const appointmentRoutes = require('./routes/appointments');
+const commissionRoutes = require('./routes/commissions');
+const dashboardRoutes = require('./routes/dashboard');
 const otherRoutes = require('./routes/other');
 
 // Import database connection
@@ -61,7 +66,7 @@ app.get('/health', (req, res) => {
     message: 'Sleep Ready API is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
-    version: '2.0.0' // Updated version with all CRUD endpoints
+    version: '3.0.0' // Updated with specialized endpoints
   });
 });
 
@@ -75,6 +80,11 @@ app.use('/api/calls', callRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/evaluations', evaluationRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/commissions', commissionRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api', otherRoutes); // Other entities
 
 // API documentation endpoint
@@ -82,7 +92,7 @@ app.get('/api', (req, res) => {
   res.json({
     success: true,
     message: 'Sleep Ready API',
-    version: '2.0.0',
+    version: '3.0.0',
     endpoints: {
       auth: {
         login: 'POST /api/auth/login',
@@ -159,6 +169,17 @@ app.get('/api', (req, res) => {
         update: 'PUT /api/subscriptions/:id',
         delete: 'DELETE /api/subscriptions/:id'
       },
+      products: {
+        list: 'GET /api/products',
+        search: 'GET /api/products/search',
+        lowStock: 'GET /api/products/low-stock',
+        categories: 'GET /api/products/categories',
+        get: 'GET /api/products/:id',
+        create: 'POST /api/products',
+        update: 'PUT /api/products/:id',
+        delete: 'DELETE /api/products/:id',
+        updateStock: 'POST /api/products/:id/stock'
+      },
       scripts: {
         list: 'GET /api/scripts',
         get: 'GET /api/scripts/:id',
@@ -166,19 +187,53 @@ app.get('/api', (req, res) => {
         update: 'PUT /api/scripts/:id',
         delete: 'DELETE /api/scripts/:id'
       },
-      commissions: {
-        list: 'GET /api/commissions',
-        get: 'GET /api/commissions/:id',
-        create: 'POST /api/commissions',
-        update: 'PUT /api/commissions/:id',
-        delete: 'DELETE /api/commissions/:id'
-      },
       evaluations: {
         list: 'GET /api/evaluations',
+        stats: 'GET /api/evaluations/stats',
         get: 'GET /api/evaluations/:id',
         create: 'POST /api/evaluations',
         update: 'PUT /api/evaluations/:id',
-        delete: 'DELETE /api/evaluations/:id'
+        delete: 'DELETE /api/evaluations/:id',
+        aiEvaluate: 'POST /api/evaluations/:id/ai-evaluate',
+        approve: 'POST /api/evaluations/:id/approve',
+        reject: 'POST /api/evaluations/:id/reject',
+        redeem: 'POST /api/evaluations/redeem/:coupon_code'
+      },
+      appointments: {
+        list: 'GET /api/appointments',
+        calendar: 'GET /api/appointments/calendar',
+        upcoming: 'GET /api/appointments/upcoming',
+        availableSlots: 'GET /api/appointments/available-slots',
+        stats: 'GET /api/appointments/stats',
+        get: 'GET /api/appointments/:id',
+        create: 'POST /api/appointments',
+        update: 'PUT /api/appointments/:id',
+        delete: 'DELETE /api/appointments/:id',
+        updateStatus: 'PATCH /api/appointments/:id/status',
+        sendReminder: 'POST /api/appointments/:id/reminder'
+      },
+      commissions: {
+        list: 'GET /api/commissions',
+        report: 'GET /api/commissions/report',
+        get: 'GET /api/commissions/:id',
+        create: 'POST /api/commissions',
+        update: 'PUT /api/commissions/:id',
+        delete: 'DELETE /api/commissions/:id',
+        calculateSale: 'POST /api/commissions/calculate/sale/:sale_id',
+        employeeSummary: 'GET /api/commissions/employee/:employee_id/summary',
+        processPending: 'POST /api/commissions/process-pending'
+      },
+      dashboard: {
+        overview: 'GET /api/dashboard/overview',
+        salesMetrics: 'GET /api/dashboard/sales-metrics',
+        employeePerformance: 'GET /api/dashboard/employee-performance',
+        storePerformance: 'GET /api/dashboard/store-performance',
+        callCenterStats: 'GET /api/dashboard/call-center-stats',
+        subscriptionMetrics: 'GET /api/dashboard/subscription-metrics',
+        tradeSleepMetrics: 'GET /api/dashboard/trade-sleep-metrics',
+        revenueAnalytics: 'GET /api/dashboard/revenue-analytics',
+        customerInsights: 'GET /api/dashboard/customer-insights',
+        productAnalytics: 'GET /api/dashboard/product-analytics'
       },
       achievements: {
         list: 'GET /api/achievements',

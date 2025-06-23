@@ -1,249 +1,365 @@
-const BaseController = require('./baseController');
-const db = require('../config/database');
+const Subscription = require('../models/Subscription');
+const { parseFilters } = require('../utils/helpers');
 
-class SubscriptionController extends BaseController {
-  constructor() {
-    super('subscriptions', 'sub-');
-  }
-
-  // Override getAll to include customer information
+const subscriptionController = {
+  // Get all subscriptions
   async getAll(req, res) {
     try {
-      const { 
-        page = 1, 
-        limit = 10, 
-        sort = 'created_at', 
-        order = 'DESC',
-        plan = '',
-        status = '',
-        customer_id = ''
-      } = req.query;
+      const { page = 1, pageSize = 20, sort = 'created_at', order = 'DESC' } = req.query;
+      const filters = parseFilters(req.query);
       
-      const offset = (page - 1) * limit;
-
-      let query = `
-        SELECT s.*,
-               c.first_name as customer_first_name,
-               c.last_name as customer_last_name,
-               c.email as customer_email,
-               c.phone as customer_phone,
-               e.first_name as seller_first_name,
-               e.last_name as seller_last_name
-        FROM subscriptions s
-        LEFT JOIN customers c ON s.customer_id = c.id
-        LEFT JOIN employees e ON s.sold_by = e.id
-        WHERE 1=1
-      `;
+      const result = await Subscription.findAll(filters, page, pageSize, sort, order);
       
-      let params = [];
-      let paramCount = 0;
-
-      if (plan) {
-        paramCount++;
-        query += ` AND s.plan = $${paramCount}`;
-        params.push(plan);
-      }
-
-      if (status) {
-        paramCount++;
-        query += ` AND s.status = $${paramCount}`;
-        params.push(status);
-      }
-
-      if (customer_id) {
-        paramCount++;
-        query += ` AND s.customer_id = $${paramCount}`;
-        params.push(customer_id);
-      }
-
-      query += ` ORDER BY s.${sort} ${order} LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-      params.push(limit, offset);
-
-      const result = await db.query(query, params);
-
-      // Get total count
-      let countQuery = 'SELECT COUNT(*) FROM subscriptions s WHERE 1=1';
-      const countParams = params.slice(0, -2);
-
-      if (plan) countQuery += ' AND s.plan = $1';
-      if (status) countQuery += ' AND s.status = $2';
-      if (customer_id) countQuery += ' AND s.customer_id = $3';
-
-      const countResult = await db.query(countQuery, countParams);
-      const total = parseInt(countResult.rows[0].count);
-
       res.json({
         success: true,
-        data: result.rows,
-        pagination: {
-          current: parseInt(page),
-          pageSize: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / limit)
-        }
+        ...result
       });
-
     } catch (error) {
-      console.error('Get subscriptions error:', error);
+      console.error('Error fetching subscriptions:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Error fetching subscriptions',
+        error: error.message
       });
     }
-  }
+  },
 
-  // Cancel a subscription
-  async cancel(req, res) {
+  // Get subscription by ID
+  async getById(req, res) {
     try {
       const { id } = req.params;
-      const { reason = '' } = req.body;
-
-      const result = await db.query(
-        `UPDATE subscriptions 
-         SET status = 'cancelled',
-             cancelled_at = NOW(),
-             cancel_reason = $2,
-             updated_at = NOW()
-         WHERE id = $1 AND status = 'active'
-         RETURNING *`,
-        [id, reason]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(400).json({
+      const subscription = await Subscription.findById(id);
+      
+      if (!subscription) {
+        return res.status(404).json({
           success: false,
-          message: 'Subscription not found or not active'
+          message: 'Subscription not found'
         });
       }
-
+      
       res.json({
         success: true,
-        message: 'Subscription cancelled successfully',
-        data: result.rows[0]
+        data: subscription
       });
-
     } catch (error) {
-      console.error('Cancel subscription error:', error);
+      console.error('Error fetching subscription:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Error fetching subscription',
+        error: error.message
       });
     }
-  }
-
-  // Pause a subscription
-  async pause(req, res) {
-    try {
-      const { id } = req.params;
-
-      const result = await db.query(
-        `UPDATE subscriptions 
-         SET status = 'paused',
-             paused_at = NOW(),
-             updated_at = NOW()
-         WHERE id = $1 AND status = 'active'
-         RETURNING *`,
-        [id]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Subscription not found or not active'
-        });
-      }
-
-      res.json({
-        success: true,
-        message: 'Subscription paused successfully',
-        data: result.rows[0]
-      });
-
-    } catch (error) {
-      console.error('Pause subscription error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error'
-      });
-    }
-  }
-
-  // Resume a subscription
-  async resume(req, res) {
-    try {
-      const { id } = req.params;
-
-      const result = await db.query(
-        `UPDATE subscriptions 
-         SET status = 'active',
-             paused_at = NULL,
-             updated_at = NOW()
-         WHERE id = $1 AND status = 'paused'
-         RETURNING *`,
-        [id]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Subscription not found or not paused'
-        });
-      }
-
-      res.json({
-        success: true,
-        message: 'Subscription resumed successfully',
-        data: result.rows[0]
-      });
-
-    } catch (error) {
-      console.error('Resume subscription error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error'
-      });
-    }
-  }
+  },
 
   // Get subscription statistics
   async getStats(req, res) {
     try {
-      const stats = await db.query(`
-        SELECT 
-          COUNT(*) as total_subscriptions,
-          COUNT(CASE WHEN status = 'active' THEN 1 END) as active_subscriptions,
-          COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_subscriptions,
-          COUNT(CASE WHEN status = 'paused' THEN 1 END) as paused_subscriptions,
-          SUM(CASE WHEN status = 'active' THEN (pricing->>'monthly')::numeric ELSE 0 END) as monthly_recurring_revenue,
-          AVG((pricing->>'monthly')::numeric) as avg_subscription_value
-        FROM subscriptions
-      `);
-
-      // Get plan distribution
-      const planStats = await db.query(`
-        SELECT plan, COUNT(*) as count
-        FROM subscriptions
-        WHERE status = 'active'
-        GROUP BY plan
-        ORDER BY count DESC
-      `);
-
+      const planStats = await Subscription.getSubscriptionStats();
+      const mrr = await Subscription.getMRR();
+      const activeSubscriptions = await Subscription.getActiveSubscriptions();
+      
+      // Calculate churn rate for last 30 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      
+      const churnData = await Subscription.getChurnRate(
+        startDate.toISOString(),
+        endDate.toISOString()
+      );
+      
       res.json({
         success: true,
         data: {
-          overview: stats.rows[0],
-          planDistribution: planStats.rows
+          plans: planStats,
+          mrr: mrr.mrr || 0,
+          totalActive: activeSubscriptions.length,
+          churnRate: churnData.churn_rate || 0,
+          summary: {
+            basic: planStats.find(p => p.plan === 'basic') || { total: 0, active: 0 },
+            premium: planStats.find(p => p.plan === 'premium') || { total: 0, active: 0 },
+            elite: planStats.find(p => p.plan === 'elite') || { total: 0, active: 0 }
+          }
         }
       });
-
     } catch (error) {
-      console.error('Get subscription stats error:', error);
+      console.error('Error fetching subscription stats:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Error fetching subscription statistics',
+        error: error.message
+      });
+    }
+  },
+
+  // Create new subscription
+  async create(req, res) {
+    try {
+      const subscriptionData = req.body;
+      
+      // Validate required fields
+      if (!subscriptionData.customer_id || !subscriptionData.plan || !subscriptionData.pricing || !subscriptionData.billing) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required fields'
+        });
+      }
+      
+      // Set sold_by from authenticated user if not provided
+      if (!subscriptionData.sold_by) {
+        subscriptionData.sold_by = req.user.id;
+      }
+      
+      // Set default status
+      subscriptionData.status = subscriptionData.status || 'active';
+      
+      // Define default services based on plan
+      if (!subscriptionData.services) {
+        const defaultServices = {
+          basic: {
+            delivery: true,
+            setup: true,
+            warranty: '5 years',
+            exchanges: 1
+          },
+          premium: {
+            delivery: true,
+            setup: true,
+            warranty: '10 years',
+            exchanges: 2,
+            cleaning: 2,
+            inspection: true
+          },
+          elite: {
+            delivery: true,
+            setup: true,
+            warranty: 'lifetime',
+            exchanges: 'unlimited',
+            cleaning: 4,
+            inspection: true,
+            priority_support: true,
+            sleep_consultation: true
+          }
+        };
+        
+        subscriptionData.services = defaultServices[subscriptionData.plan] || defaultServices.basic;
+      }
+      
+      // Define default credits based on plan
+      if (!subscriptionData.credits) {
+        const defaultCredits = {
+          basic: { monthly: 50, accumulated: 0 },
+          premium: { monthly: 100, accumulated: 0 },
+          elite: { monthly: 200, accumulated: 0 }
+        };
+        
+        subscriptionData.credits = defaultCredits[subscriptionData.plan] || defaultCredits.basic;
+      }
+      
+      const subscription = await Subscription.create(subscriptionData);
+      
+      res.status(201).json({
+        success: true,
+        message: 'Subscription created successfully',
+        data: subscription
+      });
+    } catch (error) {
+      console.error('Error creating subscription:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error creating subscription',
+        error: error.message
+      });
+    }
+  },
+
+  // Update subscription
+  async update(req, res) {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      // Check if subscription exists
+      const existing = await Subscription.findById(id);
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Subscription not found'
+        });
+      }
+      
+      // Handle JSON fields
+      if (updateData.pricing && typeof updateData.pricing === 'object') {
+        updateData.pricing = JSON.stringify(updateData.pricing);
+      }
+      
+      if (updateData.billing && typeof updateData.billing === 'object') {
+        updateData.billing = JSON.stringify(updateData.billing);
+      }
+      
+      if (updateData.services && typeof updateData.services === 'object') {
+        updateData.services = JSON.stringify(updateData.services);
+      }
+      
+      if (updateData.credits && typeof updateData.credits === 'object') {
+        updateData.credits = JSON.stringify(updateData.credits);
+      }
+      
+      const subscription = await Subscription.update(id, updateData);
+      
+      res.json({
+        success: true,
+        message: 'Subscription updated successfully',
+        data: subscription
+      });
+    } catch (error) {
+      console.error('Error updating subscription:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error updating subscription',
+        error: error.message
+      });
+    }
+  },
+
+  // Delete subscription
+  async delete(req, res) {
+    try {
+      const { id } = req.params;
+      
+      const subscription = await Subscription.delete(id);
+      
+      if (!subscription) {
+        return res.status(404).json({
+          success: false,
+          message: 'Subscription not found'
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Subscription deleted successfully',
+        data: subscription
+      });
+    } catch (error) {
+      console.error('Error deleting subscription:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting subscription',
+        error: error.message
+      });
+    }
+  },
+
+  // Cancel subscription
+  async cancel(req, res) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      
+      const subscription = await Subscription.cancelSubscription(id, reason || 'No reason provided');
+      
+      if (!subscription) {
+        return res.status(404).json({
+          success: false,
+          message: 'Subscription not found or already cancelled'
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Subscription cancelled successfully',
+        data: subscription
+      });
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error cancelling subscription',
+        error: error.message
+      });
+    }
+  },
+
+  // Pause subscription
+  async pause(req, res) {
+    try {
+      const { id } = req.params;
+      
+      const subscription = await Subscription.pauseSubscription(id);
+      
+      if (!subscription) {
+        return res.status(404).json({
+          success: false,
+          message: 'Subscription not found or not active'
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Subscription paused successfully',
+        data: subscription
+      });
+    } catch (error) {
+      console.error('Error pausing subscription:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error pausing subscription',
+        error: error.message
+      });
+    }
+  },
+
+  // Resume subscription
+  async resume(req, res) {
+    try {
+      const { id } = req.params;
+      
+      const subscription = await Subscription.resumeSubscription(id);
+      
+      if (!subscription) {
+        return res.status(404).json({
+          success: false,
+          message: 'Subscription not found or not paused'
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Subscription resumed successfully',
+        data: subscription
+      });
+    } catch (error) {
+      console.error('Error resuming subscription:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error resuming subscription',
+        error: error.message
+      });
+    }
+  },
+
+  // Get expiring subscriptions
+  async getExpiring(req, res) {
+    try {
+      const { days = 30 } = req.query;
+      
+      const subscriptions = await Subscription.getExpiringSubscriptions(parseInt(days));
+      
+      res.json({
+        success: true,
+        data: subscriptions,
+        count: subscriptions.length
+      });
+    } catch (error) {
+      console.error('Error fetching expiring subscriptions:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching expiring subscriptions',
+        error: error.message
       });
     }
   }
-}
+};
 
-module.exports = new SubscriptionController();
+module.exports = subscriptionController;

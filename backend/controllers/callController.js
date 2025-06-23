@@ -1,233 +1,341 @@
-const BaseController = require('./baseController');
-const db = require('../config/database');
+const Call = require('../models/Call');
+const { parseFilters } = require('../utils/helpers');
 
-class CallController extends BaseController {
-  constructor() {
-    super('calls', 'call-');
-  }
-
-  // Override getAll to include related data
+const callController = {
+  // Get all calls
   async getAll(req, res) {
     try {
-      const { 
-        page = 1, 
-        limit = 10, 
-        sort = 'created_at', 
-        order = 'DESC',
-        type = '',
-        status = '',
-        disposition = '',
-        user_id = '',
-        customer_id = '',
-        start_date = '',
-        end_date = ''
-      } = req.query;
+      const { page = 1, pageSize = 20, sort = 'created_at', order = 'DESC' } = req.query;
+      const filters = parseFilters(req.query);
       
-      const offset = (page - 1) * limit;
-
-      let query = `
-        SELECT c.*, 
-               cust.first_name as customer_first_name, 
-               cust.last_name as customer_last_name,
-               cust.phone as customer_phone,
-               e.first_name as employee_first_name,
-               e.last_name as employee_last_name
-        FROM calls c
-        LEFT JOIN customers cust ON c.customer_id = cust.id
-        LEFT JOIN employees e ON c.user_id = e.id
-        WHERE 1=1
-      `;
+      const result = await Call.findAll(filters, page, pageSize, sort, order);
       
-      let params = [];
-      let paramCount = 0;
-
-      if (type) {
-        paramCount++;
-        query += ` AND c.type = $${paramCount}`;
-        params.push(type);
-      }
-
-      if (status) {
-        paramCount++;
-        query += ` AND c.status = $${paramCount}`;
-        params.push(status);
-      }
-
-      if (disposition) {
-        paramCount++;
-        query += ` AND c.disposition = $${paramCount}`;
-        params.push(disposition);
-      }
-
-      if (user_id) {
-        paramCount++;
-        query += ` AND c.user_id = $${paramCount}`;
-        params.push(user_id);
-      }
-
-      if (customer_id) {
-        paramCount++;
-        query += ` AND c.customer_id = $${paramCount}`;
-        params.push(customer_id);
-      }
-
-      if (start_date) {
-        paramCount++;
-        query += ` AND c.start_time >= $${paramCount}`;
-        params.push(start_date);
-      }
-
-      if (end_date) {
-        paramCount++;
-        query += ` AND c.start_time <= $${paramCount}`;
-        params.push(end_date);
-      }
-
-      query += ` ORDER BY c.${sort} ${order} LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-      params.push(limit, offset);
-
-      const result = await db.query(query, params);
-
-      // Get total count
-      let countQuery = 'SELECT COUNT(*) FROM calls c WHERE 1=1';
-      const countParams = params.slice(0, -2); // Remove limit and offset
-
-      if (type) countQuery += ' AND c.type = $1';
-      if (status) countQuery += ' AND c.status = $2';
-      // ... add other conditions
-
-      const countResult = await db.query(countQuery, countParams);
-      const total = parseInt(countResult.rows[0].count);
-
       res.json({
         success: true,
-        data: result.rows,
-        pagination: {
-          current: parseInt(page),
-          pageSize: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / limit)
-        }
+        ...result
       });
-
     } catch (error) {
-      console.error('Get calls error:', error);
+      console.error('Error fetching calls:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Error fetching calls',
+        error: error.message
       });
     }
-  }
+  },
 
-  // Log a new call
-  async logCall(req, res) {
+  // Get call by ID
+  async getById(req, res) {
     try {
-      const {
-        customer_id,
-        user_id,
-        type,
-        status,
-        disposition,
-        duration,
-        notes,
-        script,
-        objections = [],
-        next_action
-      } = req.body;
-
-      const id = this.generateId();
-      const start_time = new Date();
-      const end_time = new Date(start_time.getTime() + (duration * 1000)); // duration in seconds
-
-      const result = await db.query(
-        `INSERT INTO calls 
-         (id, customer_id, user_id, type, status, disposition, duration, 
-          start_time, end_time, notes, script, objections, next_action, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
-         RETURNING *`,
-        [id, customer_id, user_id, type, status, disposition, duration,
-         start_time, end_time, notes, JSON.stringify(script), objections, 
-         JSON.stringify(next_action)]
-      );
-
-      // Update customer's last contact date
-      if (customer_id) {
-        await db.query(
-          'UPDATE customers SET last_contact_date = NOW() WHERE id = $1',
-          [customer_id]
-        );
+      const { id } = req.params;
+      const call = await Call.findById(id);
+      
+      if (!call) {
+        return res.status(404).json({
+          success: false,
+          message: 'Call not found'
+        });
       }
-
-      res.status(201).json({
+      
+      res.json({
         success: true,
-        message: 'Call logged successfully',
-        data: result.rows[0]
+        data: call
       });
-
     } catch (error) {
-      console.error('Log call error:', error);
+      console.error('Error fetching call:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Error fetching call',
+        error: error.message
       });
     }
-  }
+  },
 
   // Get call statistics
   async getStats(req, res) {
     try {
-      const { user_id, start_date, end_date } = req.query;
-
-      let query = `
-        SELECT 
-          COUNT(*) as total_calls,
-          COUNT(DISTINCT customer_id) as unique_customers,
-          AVG(duration) as avg_duration,
-          COUNT(CASE WHEN disposition = 'sale' THEN 1 END) as successful_calls,
-          COUNT(CASE WHEN disposition = 'no_answer' THEN 1 END) as no_answer,
-          COUNT(CASE WHEN disposition = 'callback' THEN 1 END) as callbacks,
-          COUNT(CASE WHEN type = 'inbound' THEN 1 END) as inbound_calls,
-          COUNT(CASE WHEN type = 'outbound' THEN 1 END) as outbound_calls
-        FROM calls
-        WHERE 1=1
-      `;
-
-      const params = [];
-      let paramCount = 0;
-
-      if (user_id) {
-        paramCount++;
-        query += ` AND user_id = $${paramCount}`;
-        params.push(user_id);
-      }
-
-      if (start_date) {
-        paramCount++;
-        query += ` AND start_time >= $${paramCount}`;
-        params.push(start_date);
-      }
-
-      if (end_date) {
-        paramCount++;
-        query += ` AND start_time <= $${paramCount}`;
-        params.push(end_date);
-      }
-
-      const result = await db.query(query, params);
-
+      const { 
+        startDate = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString(),
+        endDate = new Date().toISOString(),
+        groupBy = 'agent'
+      } = req.query;
+      
+      const stats = await Call.getCallStats(startDate, endDate, groupBy);
+      const activeCallsCount = await Call.getActiveCallsCount();
+      
       res.json({
         success: true,
-        data: result.rows[0]
+        data: {
+          stats,
+          activeCalls: activeCallsCount,
+          period: { startDate, endDate },
+          groupBy
+        }
       });
-
     } catch (error) {
-      console.error('Get call stats error:', error);
+      console.error('Error fetching call stats:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Error fetching call statistics',
+        error: error.message
+      });
+    }
+  },
+
+  // Create new call (start call)
+  async create(req, res) {
+    try {
+      const callData = req.body;
+      
+      // Validate required fields
+      if (!callData.customer_id || !callData.type) {
+        return res.status(400).json({
+          success: false,
+          message: 'Customer ID and call type are required'
+        });
+      }
+      
+      // Set user_id from authenticated user if not provided
+      if (!callData.user_id) {
+        callData.user_id = req.user.id;
+      }
+      
+      const call = await Call.create(callData);
+      
+      res.status(201).json({
+        success: true,
+        message: 'Call started successfully',
+        data: call
+      });
+    } catch (error) {
+      console.error('Error creating call:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error creating call',
+        error: error.message
+      });
+    }
+  },
+
+  // Update call
+  async update(req, res) {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      // Check if call exists
+      const existing = await Call.findById(id);
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Call not found'
+        });
+      }
+      
+      // Handle JSON fields
+      if (updateData.script && typeof updateData.script === 'object') {
+        updateData.script = JSON.stringify(updateData.script);
+      }
+      
+      if (updateData.objections && Array.isArray(updateData.objections)) {
+        updateData.objections = `{${updateData.objections.join(',')}}`;
+      }
+      
+      if (updateData.next_action && typeof updateData.next_action === 'object') {
+        updateData.next_action = JSON.stringify(updateData.next_action);
+      }
+      
+      if (updateData.metadata && typeof updateData.metadata === 'object') {
+        updateData.metadata = JSON.stringify(updateData.metadata);
+      }
+      
+      const call = await Call.update(id, updateData);
+      
+      res.json({
+        success: true,
+        message: 'Call updated successfully',
+        data: call
+      });
+    } catch (error) {
+      console.error('Error updating call:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error updating call',
+        error: error.message
+      });
+    }
+  },
+
+  // Delete call
+  async delete(req, res) {
+    try {
+      const { id } = req.params;
+      
+      const call = await Call.delete(id);
+      
+      if (!call) {
+        return res.status(404).json({
+          success: false,
+          message: 'Call not found'
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Call deleted successfully',
+        data: call
+      });
+    } catch (error) {
+      console.error('Error deleting call:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting call',
+        error: error.message
+      });
+    }
+  },
+
+  // Log a completed call
+  async log(req, res) {
+    try {
+      const callData = req.body;
+      
+      // Validate required fields
+      if (!callData.customer_id || !callData.type || !callData.disposition) {
+        return res.status(400).json({
+          success: false,
+          message: 'Customer ID, call type, and disposition are required'
+        });
+      }
+      
+      // Set user_id from authenticated user if not provided
+      if (!callData.user_id) {
+        callData.user_id = req.user.id;
+      }
+      
+      const call = await Call.logCall(callData);
+      
+      res.status(201).json({
+        success: true,
+        message: 'Call logged successfully',
+        data: call
+      });
+    } catch (error) {
+      console.error('Error logging call:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error logging call',
+        error: error.message
+      });
+    }
+  },
+
+  // End an active call
+  async end(req, res) {
+    try {
+      const { id } = req.params;
+      const { disposition, notes, next_action } = req.body;
+      
+      if (!disposition) {
+        return res.status(400).json({
+          success: false,
+          message: 'Call disposition is required'
+        });
+      }
+      
+      const call = await Call.endCall(id, {
+        disposition,
+        notes,
+        next_action
+      });
+      
+      if (!call) {
+        return res.status(404).json({
+          success: false,
+          message: 'Call not found'
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Call ended successfully',
+        data: call
+      });
+    } catch (error) {
+      console.error('Error ending call:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error ending call',
+        error: error.message
+      });
+    }
+  },
+
+  // Get call queue
+  async getQueue(req, res) {
+    try {
+      const { campaignId } = req.query;
+      
+      const queue = await Call.getCallQueue(campaignId);
+      
+      res.json({
+        success: true,
+        data: queue,
+        count: queue.length
+      });
+    } catch (error) {
+      console.error('Error fetching call queue:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching call queue',
+        error: error.message
+      });
+    }
+  },
+
+  // Get recent calls
+  async getRecent(req, res) {
+    try {
+      const { limit = 10 } = req.query;
+      
+      const calls = await Call.getRecentCalls(parseInt(limit));
+      
+      res.json({
+        success: true,
+        data: calls
+      });
+    } catch (error) {
+      console.error('Error fetching recent calls:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching recent calls',
+        error: error.message
+      });
+    }
+  },
+
+  // Get agent calls
+  async getAgentCalls(req, res) {
+    try {
+      const { agentId } = req.params;
+      const { startDate, endDate } = req.query;
+      
+      const calls = await Call.getCallsByAgent(agentId, startDate, endDate);
+      
+      res.json({
+        success: true,
+        data: calls,
+        count: calls.length
+      });
+    } catch (error) {
+      console.error('Error fetching agent calls:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching agent calls',
+        error: error.message
       });
     }
   }
-}
+};
 
-module.exports = new CallController();
+module.exports = callController;

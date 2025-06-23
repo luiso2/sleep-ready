@@ -48,64 +48,138 @@ export const dataProvider: DataProvider = {
     
     if (pagination) {
       params.page = pagination.current;
-      params.limit = pagination.pageSize;
+      params.pageSize = pagination.pageSize;
     }
 
     if (filters) {
       filters.forEach((filter) => {
-        if (filter.operator === "eq") {
+        if (filter.field === "q" || filter.field === "search") {
+          params.q = filter.value;
+        } else if (filter.operator === "eq") {
           params[filter.field] = filter.value;
         } else if (filter.operator === "contains") {
-          params.search = filter.value;
+          params[`${filter.field}_like`] = filter.value;
+        } else if (filter.operator === "between") {
+          if (Array.isArray(filter.value)) {
+            params[`${filter.field}_gte`] = filter.value[0];
+            params[`${filter.field}_lte`] = filter.value[1];
+          }
+        } else if (filter.operator === "gte") {
+          params[`${filter.field}_gte`] = filter.value;
+        } else if (filter.operator === "lte") {
+          params[`${filter.field}_lte`] = filter.value;
         }
       });
     }
 
-    if (sorters) {
+    if (sorters && sorters.length > 0) {
       const sorter = sorters[0];
-      if (sorter) {
-        params.sort = sorter.field;
-        params.order = sorter.order;
-      }
+      params.sort = sorter.field;
+      params.order = sorter.order;
     }
 
     const { data } = await axiosInstance.get(url, { params });
 
+    // Handle different response formats
+    let responseData = [];
+    let total = 0;
+
+    if (data.success && data.data) {
+      responseData = data.data;
+      total = data.total || data.data.length;
+    } else if (data.success && data.items) {
+      responseData = data.items;
+      total = data.total || data.items.length;
+    } else if (Array.isArray(data)) {
+      responseData = data;
+      total = data.length;
+    }
+
     return {
-      data: data.data || [],
-      total: data.pagination?.total || data.data?.length || 0,
+      data: responseData,
+      total: total,
     };
   },
 
   // Get single resource
   getOne: async ({ resource, id }) => {
     const { data } = await axiosInstance.get(`/${resource}/${id}`);
+    
+    // Handle different response formats
+    let responseData = data;
+    
+    if (data.success && data.data) {
+      responseData = data.data;
+    }
+
     return {
-      data: data.data,
+      data: responseData,
     };
   },
 
   // Create new resource
   create: async ({ resource, variables }) => {
     const { data } = await axiosInstance.post(`/${resource}`, variables);
+    
+    // Handle different response formats
+    let responseData = data;
+    
+    if (data.success && data.data) {
+      responseData = data.data;
+    }
+
     return {
-      data: data.data,
+      data: responseData,
     };
   },
 
   // Update existing resource
   update: async ({ resource, id, variables }) => {
     const { data } = await axiosInstance.put(`/${resource}/${id}`, variables);
+    
+    // Handle different response formats
+    let responseData = data;
+    
+    if (data.success && data.data) {
+      responseData = data.data;
+    }
+
     return {
-      data: data.data,
+      data: responseData,
     };
   },
 
   // Delete resource
   deleteOne: async ({ resource, id }) => {
     const { data } = await axiosInstance.delete(`/${resource}/${id}`);
+    
+    // Handle different response formats
+    let responseData = data;
+    
+    if (data.success && data.data) {
+      responseData = data.data;
+    }
+
     return {
-      data: data.data,
+      data: responseData,
+    };
+  },
+
+  // Get many resources by IDs
+  getMany: async ({ resource, ids }) => {
+    const promises = ids.map((id) =>
+      axiosInstance.get(`/${resource}/${id}`)
+    );
+    
+    const responses = await Promise.all(promises);
+    
+    return {
+      data: responses.map((response) => {
+        if (response.data.success && response.data.data) {
+          return response.data.data;
+        }
+        return response.data;
+      }),
     };
   },
 
