@@ -18,9 +18,9 @@ export const LoginPage: React.FC = () => {
   };
 
   const demoCredentials = [
-    { email: "admin@lamattressstore.com", password: "admin123", role: "Admin" },
-    { email: "john.smith@lamattressstore.com", password: "password", role: "Manager" },
-    { email: "maria.garcia@lamattressstore.com", password: "password", role: "Agent" },
+    { email: "admin@sleepready.com", password: "admin123", role: "Administrator" },
+    { email: "test.manager@sleepready.com", password: "password", role: "Manager" },
+    { email: "test.agent@sleepready.com", password: "password", role: "Agent" },
   ];
 
   const fillDemoCredentials = (email: string, password: string) => {
