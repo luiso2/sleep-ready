@@ -1,49 +1,38 @@
 const express = require('express');
-const { body } = require('express-validator');
-const customerController = require('../controllers/customerController');
-const { authenticateToken, requireRole } = require('../middleware/auth');
-
 const router = express.Router();
+const customerController = require('../controllers/customerController');
+const { authenticate } = require('../middleware/auth');
+const { body, param, query } = require('express-validator');
+const { handleValidationErrors } = require('../utils/validation');
 
-// Validation middleware
-const customerValidation = [
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email'),
-  body('first_name')
-    .isLength({ min: 2 })
-    .withMessage('First name must be at least 2 characters long'),
-  body('last_name')
-    .isLength({ min: 2 })
-    .withMessage('Last name must be at least 2 characters long'),
-  body('phone')
-    .optional()
-    .isMobilePhone()
-    .withMessage('Please provide a valid phone number')
+// Validation rules
+const validateCustomer = [
+  body('first_name').trim().notEmpty().withMessage('First name is required'),
+  body('last_name').trim().notEmpty().withMessage('Last name is required'),
+  body('email').optional().isEmail().normalizeEmail().withMessage('Invalid email format'),
+  body('phone').optional().matches(/^[\d\s\-\+\(\)]+$/).withMessage('Invalid phone format'),
+  handleValidationErrors
 ];
 
-// All routes require authentication
-router.use(authenticateToken);
+const validateId = [
+  param('id').notEmpty().withMessage('Customer ID is required'),
+  handleValidationErrors
+];
 
-// GET /api/customers - Get all customers with pagination
-router.get('/', customerController.getAllCustomers);
+const validateCredits = [
+  param('id').notEmpty().withMessage('Customer ID is required'),
+  body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
+  body('operation').optional().isIn(['add', 'subtract']).withMessage('Operation must be add or subtract'),
+  handleValidationErrors
+];
 
-// GET /api/customers/:id - Get specific customer
-router.get('/:id', customerController.getCustomerById);
-
-// POST /api/customers - Create new customer
-router.post('/', 
-  requireRole(['admin', 'manager', 'agent']),
-  customerValidation,
-  customerController.createCustomer
-);
-
-// PUT /api/customers/:id - Update customer
-router.put('/:id',
-  requireRole(['admin', 'manager', 'agent']),
-  customerValidation,
-  customerController.updateCustomer
-);
+// Routes
+router.get('/', authenticate, customerController.getAll);
+router.get('/search', authenticate, customerController.search);
+router.get('/:id', authenticate, validateId, customerController.getById);
+router.post('/', authenticate, validateCustomer, customerController.create);
+router.put('/:id', authenticate, validateId, validateCustomer, customerController.update);
+router.delete('/:id', authenticate, validateId, customerController.delete);
+router.post('/:id/credits', authenticate, validateCredits, customerController.updateCredits);
 
 module.exports = router;

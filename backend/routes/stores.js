@@ -1,34 +1,43 @@
-const router = require('express').Router();
-const { body, param } = require('express-validator');
-const { authenticateToken } = require('../middleware/auth');
+const express = require('express');
+const router = express.Router();
 const storeController = require('../controllers/storeController');
-
-// Apply authentication to all routes
-router.use(authenticateToken);
+const { authenticate, authorize } = require('../middleware/auth');
+const { body, param, query } = require('express-validator');
+const { handleValidationErrors } = require('../utils/validation');
 
 // Validation rules
-const createValidation = [
-  body('name').notEmpty().withMessage('Store name is required'),
-  body('code').notEmpty().withMessage('Store code is required'),
+const validateStore = [
+  body('name').trim().notEmpty().withMessage('Store name is required'),
+  body('code').trim().notEmpty().isAlphanumeric().withMessage('Store code is required and must be alphanumeric'),
   body('address').isObject().withMessage('Address must be an object'),
   body('address.street').notEmpty().withMessage('Street address is required'),
   body('address.city').notEmpty().withMessage('City is required'),
   body('address.state').notEmpty().withMessage('State is required'),
-  body('address.zip').notEmpty().withMessage('ZIP code is required')
+  body('address.zip').notEmpty().withMessage('ZIP code is required'),
+  body('phone').optional().matches(/^[\d\s\-\+\(\)]+$/).withMessage('Invalid phone format'),
+  handleValidationErrors
 ];
 
-const updateValidation = [
+const validateId = [
   param('id').notEmpty().withMessage('Store ID is required'),
-  body('address').optional().isObject().withMessage('Address must be an object')
+  handleValidationErrors
+];
+
+const validateNearby = [
+  query('lat').isFloat({ min: -90, max: 90 }).withMessage('Valid latitude is required'),
+  query('lng').isFloat({ min: -180, max: 180 }).withMessage('Valid longitude is required'),
+  query('radius').optional().isInt({ min: 1, max: 500 }).withMessage('Radius must be between 1 and 500 miles'),
+  handleValidationErrors
 ];
 
 // Routes
-router.get('/', storeController.getAll.bind(storeController));
-router.get('/:id', storeController.getById.bind(storeController));
-router.get('/:id/performance', storeController.getPerformance.bind(storeController));
-router.get('/:id/employees', storeController.getEmployees.bind(storeController));
-router.post('/', createValidation, storeController.create.bind(storeController));
-router.put('/:id', updateValidation, storeController.update.bind(storeController));
-router.delete('/:id', storeController.delete.bind(storeController));
+router.get('/', authenticate, storeController.getAll);
+router.get('/nearby', authenticate, validateNearby, storeController.getNearby);
+router.get('/:id', authenticate, validateId, storeController.getById);
+router.get('/:id/performance', authenticate, validateId, storeController.getPerformance);
+router.get('/:id/employees', authenticate, validateId, storeController.getEmployees);
+router.post('/', authenticate, authorize(['admin']), validateStore, storeController.create);
+router.put('/:id', authenticate, authorize(['admin', 'manager']), validateId, storeController.update);
+router.delete('/:id', authenticate, authorize(['admin']), validateId, storeController.delete);
 
 module.exports = router;

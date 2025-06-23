@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
-const db = require('../config/database');
+const { pool } = require('../config/database');
 
-const authenticateToken = async (req, res, next) => {
+const authenticate = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -16,7 +16,7 @@ const authenticateToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Verify user still exists in database
-    const result = await db.query(
+    const result = await pool.query(
       'SELECT id, email, first_name, last_name, role, status FROM employees WHERE id = $1',
       [decoded.id]
     );
@@ -48,7 +48,7 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-const requireRole = (roles) => {
+const authorize = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -68,7 +68,13 @@ const requireRole = (roles) => {
   };
 };
 
+// Alias for backwards compatibility
+const authenticateToken = authenticate;
+const requireRole = authorize;
+
 module.exports = {
+  authenticate,
+  authorize,
   authenticateToken,
   requireRole
 };

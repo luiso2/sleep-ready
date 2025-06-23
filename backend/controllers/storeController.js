@@ -1,175 +1,288 @@
-const BaseController = require('./baseController');
-const db = require('../config/database');
+const Store = require('../models/Store');
+const { parseFilters } = require('../utils/helpers');
 
-class StoreController extends BaseController {
-  constructor() {
-    super('stores', 'store-');
-  }
-
-  // Override getAll to include manager information
+const storeController = {
+  // Get all stores
   async getAll(req, res) {
     try {
-      const { page = 1, limit = 10, sort = 'created_at', order = 'DESC', status = '' } = req.query;
-      const offset = (page - 1) * limit;
-
-      let query = `
-        SELECT s.*, 
-               e.first_name as manager_first_name,
-               e.last_name as manager_last_name,
-               (SELECT COUNT(*) FROM employees WHERE store_id = s.id) as employee_count
-        FROM stores s
-        LEFT JOIN employees e ON s.manager_id = e.id
-        WHERE 1=1
-      `;
+      const { page = 1, pageSize = 20, sort = 'created_at', order = 'DESC' } = req.query;
+      const filters = parseFilters(req.query);
       
-      let params = [];
-      let paramCount = 0;
-
-      if (status) {
-        paramCount++;
-        query += ` AND s.status = $${paramCount}`;
-        params.push(status);
-      }
-
-      query += ` ORDER BY s.${sort} ${order} LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-      params.push(limit, offset);
-
-      const result = await db.query(query, params);
-
-      // Get total count
-      let countQuery = 'SELECT COUNT(*) FROM stores WHERE 1=1';
-      const countParams = [];
+      const result = await Store.findAll(filters, page, pageSize, sort, order);
       
-      if (status) {
-        countQuery += ' AND status = $1';
-        countParams.push(status);
-      }
-
-      const countResult = await db.query(countQuery, countParams);
-      const total = parseInt(countResult.rows[0].count);
-
       res.json({
         success: true,
-        data: result.rows,
-        pagination: {
-          current: parseInt(page),
-          pageSize: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / limit)
-        }
+        ...result
       });
-
     } catch (error) {
-      console.error('Get stores error:', error);
+      console.error('Error fetching stores:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Error fetching stores',
+        error: error.message
       });
     }
-  }
+  },
 
-  // Get store performance
-  async getPerformance(req, res) {
+  // Get store by ID
+  async getById(req, res) {
     try {
       const { id } = req.params;
-      const { start_date, end_date } = req.query;
-
-      // Get store info
-      const store = await db.query(
-        'SELECT * FROM stores WHERE id = $1',
-        [id]
-      );
-
-      if (store.rows.length === 0) {
+      const store = await Store.findById(id);
+      
+      if (!store) {
         return res.status(404).json({
           success: false,
           message: 'Store not found'
         });
       }
+      
+      res.json({
+        success: true,
+        data: store
+      });
+    } catch (error) {
+      console.error('Error fetching store:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching store',
+        error: error.message
+      });
+    }
+  },
 
-      // Get sales performance
-      let salesQuery = `
-        SELECT 
-          COUNT(*) as total_sales,
-          SUM((amount->>'total')::numeric) as total_revenue,
-          AVG((amount->>'total')::numeric) as avg_sale_value,
-          COUNT(DISTINCT customer_id) as unique_customers
-        FROM sales 
-        WHERE store_id = $1
-      `;
-
-      const params = [id];
-      let paramCount = 1;
-
-      if (start_date) {
-        paramCount++;
-        salesQuery += ` AND created_at >= $${paramCount}`;
-        params.push(start_date);
+  // Get store performance
+  async getPerformance(req, res) {
+    try {
+      const { id } = req.params;
+      const { startDate, endDate } = req.query;
+      
+      const store = await Store.findById(id);
+      if (!store) {
+        return res.status(404).json({
+          success: false,
+          message: 'Store not found'
+        });
       }
-
-      if (end_date) {
-        paramCount++;
-        salesQuery += ` AND created_at <= $${paramCount}`;
-        params.push(end_date);
-      }
-
-      const salesResult = await db.query(salesQuery, params);
-
-      // Get employee performance
-      const employeeQuery = `
-        SELECT 
-          COUNT(*) as total_employees,
-          COUNT(CASE WHEN status = 'active' THEN 1 END) as active_employees
-        FROM employees 
-        WHERE store_id = $1
-      `;
-
-      const employeeResult = await db.query(employeeQuery, [id]);
-
+      
+      const performance = await Store.getStorePerformance(id, startDate, endDate);
+      
       res.json({
         success: true,
         data: {
-          store: store.rows[0],
-          sales: salesResult.rows[0],
-          employees: employeeResult.rows[0]
+          store: {
+            id: store.id,
+            name: store.name,
+            code: store.code
+          },
+          performance,
+          period: {
+            start: startDate || 'all time',
+            end: endDate || 'current'
+          }
         }
       });
-
     } catch (error) {
-      console.error('Get store performance error:', error);
+      console.error('Error fetching store performance:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Error fetching store performance',
+        error: error.message
       });
     }
-  }
+  },
 
   // Get store employees
   async getEmployees(req, res) {
     try {
       const { id } = req.params;
-
-      const result = await db.query(
-        `SELECT id, employee_id, first_name, last_name, role, status, phone_extension
-         FROM employees 
-         WHERE store_id = $1
-         ORDER BY last_name, first_name`,
-        [id]
-      );
-
+      
+      const store = await Store.findById(id);
+      if (!store) {
+        return res.status(404).json({
+          success: false,
+          message: 'Store not found'
+        });
+      }
+      
+      const employees = await Store.getStoreEmployees(id);
+      
       res.json({
         success: true,
-        data: result.rows
+        data: employees
       });
-
     } catch (error) {
-      console.error('Get store employees error:', error);
+      console.error('Error fetching store employees:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Error fetching store employees',
+        error: error.message
+      });
+    }
+  },
+
+  // Create new store
+  async create(req, res) {
+    try {
+      const storeData = req.body;
+      
+      // Check if store code already exists
+      if (storeData.code) {
+        const existingCode = await Store.findByCode(storeData.code);
+        if (existingCode) {
+          return res.status(400).json({
+            success: false,
+            message: 'Store with this code already exists'
+          });
+        }
+      }
+      
+      const store = await Store.create(storeData);
+      
+      res.status(201).json({
+        success: true,
+        message: 'Store created successfully',
+        data: store
+      });
+    } catch (error) {
+      console.error('Error creating store:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error creating store',
+        error: error.message
+      });
+    }
+  },
+
+  // Update store
+  async update(req, res) {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      // Check if store exists
+      const existing = await Store.findById(id);
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Store not found'
+        });
+      }
+      
+      // Check if code is being changed and already exists
+      if (updateData.code && updateData.code !== existing.code) {
+        const codeExists = await Store.findByCode(updateData.code);
+        if (codeExists) {
+          return res.status(400).json({
+            success: false,
+            message: 'Store code already in use'
+          });
+        }
+      }
+      
+      // Handle JSON fields
+      if (updateData.address && typeof updateData.address === 'object') {
+        updateData.address = JSON.stringify(updateData.address);
+      }
+      
+      if (updateData.hours && typeof updateData.hours === 'object') {
+        updateData.hours = JSON.stringify(updateData.hours);
+      }
+      
+      if (updateData.service_area && typeof updateData.service_area === 'object') {
+        updateData.service_area = JSON.stringify(updateData.service_area);
+      }
+      
+      if (updateData.performance && typeof updateData.performance === 'object') {
+        updateData.performance = JSON.stringify(updateData.performance);
+      }
+      
+      const store = await Store.update(id, updateData);
+      
+      res.json({
+        success: true,
+        message: 'Store updated successfully',
+        data: store
+      });
+    } catch (error) {
+      console.error('Error updating store:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error updating store',
+        error: error.message
+      });
+    }
+  },
+
+  // Delete store
+  async delete(req, res) {
+    try {
+      const { id } = req.params;
+      
+      // Check if store has employees
+      const employees = await Store.getStoreEmployees(id);
+      if (employees.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot delete store with active employees'
+        });
+      }
+      
+      const store = await Store.delete(id);
+      
+      if (!store) {
+        return res.status(404).json({
+          success: false,
+          message: 'Store not found'
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Store deleted successfully',
+        data: store
+      });
+    } catch (error) {
+      console.error('Error deleting store:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting store',
+        error: error.message
+      });
+    }
+  },
+
+  // Get nearby stores
+  async getNearby(req, res) {
+    try {
+      const { lat, lng, radius = 50 } = req.query;
+      
+      if (!lat || !lng) {
+        return res.status(400).json({
+          success: false,
+          message: 'Latitude and longitude are required'
+        });
+      }
+      
+      const stores = await Store.getNearbyStores(
+        parseFloat(lat), 
+        parseFloat(lng), 
+        parseInt(radius)
+      );
+      
+      res.json({
+        success: true,
+        data: stores
+      });
+    } catch (error) {
+      console.error('Error fetching nearby stores:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching nearby stores',
+        error: error.message
       });
     }
   }
-}
+};
 
-module.exports = new StoreController();
+module.exports = storeController;

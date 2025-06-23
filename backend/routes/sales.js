@@ -1,30 +1,39 @@
-const router = require('express').Router();
-const { body, param, query } = require('express-validator');
-const { authenticateToken } = require('../middleware/auth');
+const express = require('express');
+const router = express.Router();
 const saleController = require('../controllers/saleController');
-
-// Apply authentication to all routes
-router.use(authenticateToken);
+const { authenticate, authorize } = require('../middleware/auth');
+const { body, param, query } = require('express-validator');
+const { handleValidationErrors } = require('../utils/validation');
 
 // Validation rules
-const createValidation = [
-  body('type').notEmpty().withMessage('Sale type is required'),
-  body('channel').notEmpty().withMessage('Sale channel is required'),
+const validateSale = [
+  body('customer_id').notEmpty().withMessage('Customer ID is required'),
+  body('type').isIn(['subscription', 'trade_and_sleep', 'direct_sale']).withMessage('Invalid sale type'),
+  body('channel').isIn(['phone', 'in_store', 'online']).withMessage('Invalid channel'),
   body('amount').isObject().withMessage('Amount must be an object'),
-  body('amount.total').isNumeric().withMessage('Total amount is required')
+  body('amount.total').isFloat({ min: 0 }).withMessage('Total amount must be a positive number'),
+  handleValidationErrors
 ];
 
-const updateValidation = [
+const validateId = [
   param('id').notEmpty().withMessage('Sale ID is required'),
-  body('amount.total').optional().isNumeric().withMessage('Total amount must be numeric')
+  handleValidationErrors
+];
+
+const validatePaymentStatus = [
+  param('id').notEmpty().withMessage('Sale ID is required'),
+  body('status').isIn(['pending', 'completed', 'failed', 'refunded']).withMessage('Invalid payment status'),
+  handleValidationErrors
 ];
 
 // Routes
-router.get('/', saleController.getAll.bind(saleController));
-router.get('/stats', saleController.getStats.bind(saleController));
-router.get('/:id', saleController.getById.bind(saleController));
-router.post('/', createValidation, saleController.create.bind(saleController));
-router.put('/:id', updateValidation, saleController.update.bind(saleController));
-router.delete('/:id', saleController.delete.bind(saleController));
+router.get('/', authenticate, saleController.getAll);
+router.get('/stats', authenticate, saleController.getStats);
+router.get('/top-performers', authenticate, saleController.getTopPerformers);
+router.get('/:id', authenticate, validateId, saleController.getById);
+router.post('/', authenticate, validateSale, saleController.create);
+router.put('/:id', authenticate, validateId, saleController.update);
+router.put('/:id/payment-status', authenticate, validatePaymentStatus, saleController.updatePaymentStatus);
+router.delete('/:id', authenticate, authorize(['admin', 'manager']), validateId, saleController.delete);
 
 module.exports = router;
