@@ -1,0 +1,25 @@
+name: Deploy to EasyPanel
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy to EasyPanel
+      run: |
+        echo "Deployment triggered for Sleep Ready project"
+        echo "Frontend changes detected - rebuild required"
+        echo "Backend changes detected - rebuild required"
+        
+    # Add webhook trigger here if EasyPanel supports it
+    # For now, manual rebuild is required in EasyPanel
