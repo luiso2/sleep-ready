@@ -3,7 +3,6 @@ import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
 import {
   ErrorComponent,
   ThemedLayoutV2,
-  ThemedSiderV2,
   useNotificationProvider,
 } from "@refinedev/antd";
 import routerBindings, {
@@ -20,6 +19,7 @@ import { dataProvider } from "./providers/dataProvider";
 import { authProvider } from "./providers/authProvider";
 import { LoginPage } from "./pages/login";
 import { Dashboard } from "./components/Dashboard";
+import { CustomSider } from "./components/layout/CustomSider";
 
 // Customer pages
 import { 
@@ -238,7 +238,7 @@ const App: React.FC = () => {
                 <Route
                   element={
                     <ThemedLayoutV2
-                      Sider={(props) => <ThemedSiderV2 {...props} fixed />}
+                      Sider={() => <CustomSider />}
                     >
                       <Outlet />
                     </ThemedLayoutV2>
