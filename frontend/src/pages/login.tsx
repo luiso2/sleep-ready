@@ -58,10 +58,13 @@ export const LoginPage: React.FC = () => {
                 }} 
               />
               <Title level={2} style={{ margin: 0, color: "#1a1a1a" }}>
-                Sleep Ready
+                Sleep Ready 🌙
               </Title>
               <Text type="secondary">
                 Welcome back! Please sign in to your account
+              </Text>
+              <Text type="warning" style={{ display: "block", marginTop: 8 }}>
+                TEST DEPLOYMENT - VERSION 2.0
               </Text>
             </div>
 
